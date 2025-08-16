@@ -21,7 +21,8 @@ keywords = {"csdx","人呢","敦➗","🐴","上号","сsdх"}
 
 ban_user = {"384828033":"keyword",
             "492620247":"keyword",
-            "605471601":"image"}  # 可以添加更多用户
+            "605471601":"image",
+            "2251738700":"keyword,image"}  # 可以添加更多用户
 
 # 检查是否为群消息且不是自己发送的
 def is_group_message(event: MessageEvent) -> bool:
@@ -30,8 +31,14 @@ def is_group_message(event: MessageEvent) -> bool:
 # 消息事件处理器
 msg_handler = on_message(rule=Rule(is_group_message), priority=10, block=False)
 
+def is_banned_user(event: GroupMessageEvent, type) -> bool:
+    return str(event.user_id) in ban_user.keys() and type in ban_user[str(event.user_id)]
+
 @msg_handler.handle()
 async def handle_message(event: GroupMessageEvent, matcher: Matcher):
+    if not is_banned_user(event, "keyword"):
+        # 如果用户被禁言，直接返回
+        return
     message = event.get_plaintext().strip()
     for keyword in keywords:
         if keyword in message:
@@ -62,17 +69,19 @@ def is_image_message(event: GroupMessageEvent) -> bool:
     return False
 
 
-@image_monitor.handle()
+@msg_handler.handle()
 async def handle_image(event: GroupMessageEvent):
     if not is_image_message(event):
         return
-    if event.user_id in banned_users.keys() and "image" in banned_users[event.user_id]:
-        try:
-            from nonebot import get_bot
-            bot = get_bot()
-            await bot.delete_msg(message_id=event.message_id)
-        except Exception as e:
-            print(f"禁言失败: {e}")
+    if not is_banned_user(event, "image"):
+        # 如果用户被禁言，直接返回
+        return
+    try:
+        from nonebot import get_bot
+        bot = get_bot()
+        await bot.delete_msg(message_id=event.message_id)
+    except Exception as e:
+        print(f"禁言失败: {e}")
 
 # 添加关键字命令
 add_keyword = on_command("add_keyword", aliases={"添加关键字"}, permission=SUPERUSER)
